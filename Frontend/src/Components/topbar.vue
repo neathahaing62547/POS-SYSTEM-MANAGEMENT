@@ -285,7 +285,7 @@ const pageTitle = computed(() => {
     right: 0;
     width: 150px;
     padding: 6px;
-    background: #faf3f3;
+    background: #1a1919;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
@@ -308,7 +308,7 @@ const pageTitle = computed(() => {
 }
 
 .user-dropdown button:hover {
-    background: #f3f4f600;
+    background: #f3f4f6;
     color: #dc2626;
 }
 

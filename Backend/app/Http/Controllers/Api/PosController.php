@@ -4,51 +4,105 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Store;
 use Illuminate\Http\Request;
 use App\Models\Product;
+use App\Services\PosStoreResolver;
 
 class PosController extends Controller
 {
+    public function __construct(private PosStoreResolver $posStoreResolver)
+    {
+    }
     public function index(Request $request)
     {
-        $query = Product::query();
+        $request->validate([
+            'category_id' => 'nullable|integer|exists:categories,id',
+        ]);
+
+        $storeId = $this->posStoreResolver->storeIdForUser($request->user()->id);
+        $query = Product::query()
+            ->where('status', 'active')
+            ->withSum([
+                'inventoryStocks as available_stock' => function ($stockQuery) use ($storeId) {
+                    $stockQuery->where('store_id', $storeId);
+                }
+            ], 'quantity');
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
         $totalproduct = Product::count();
         $statusactive = Product::where('status', 'active')->count();
         $statusinactive = Product::where('status', 'inactive')->count();
-        $checkinstock = Product::withSum('inventoryStocks', 'quantity')->latest()->paginate(10);
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim($request->search);
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('cost_price', 'like', "%{$search}%")
-                    ->orWhere('sale_price', 'like', "%{$search}%")
+                    ->orWhere('barcode', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%");
             });
         }
-        $product = $query
+        $products = $query
             ->latest()
-            ->paginate(10);
+            ->get();
+        $store = Store::findOrFail($storeId);
         return response()->json([
             'message' => 'POS Product received successfully.',
+            'store' => ['id' => $store->id, 'name' => $store->name],
             'summary' => [
                 'total_products' => $totalproduct,
                 'active_products' => $statusactive,
                 'inactive_products' => $statusinactive,
-                'total_stock' => $checkinstock,
+                'filtered_products' => $products->count(),
             ],
-            'data' => $product
+            'data' => $products
         ]);
     }
+    public function categories(Request $request)
+    {
+        $storeId = $this->posStoreResolver->storeIdForUser($request->user()->id);
+        $categories = Category::query()
+            ->where('status', 'active')
+            ->whereHas('products', function ($productQuery) use ($storeId) {
+                $productQuery
+                    ->where('status', 'active')
+                    ->whereHas('inventoryStocks', function ($stockQuery) use ($storeId) {
+                        $stockQuery
+                            ->where('store_id', $storeId)
+                            ->where('quantity', '>', 0);
+                    });
+            })
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json([
+            'message' => 'POS categories received successfully.',
+            'data' => $categories,
+        ]);
+    }
+
     public function filltercategory(Request $request, $category)
     {
-        $o = Category::with(['products'
-        => function ($query) {
-            $query->where('status', 'active');
-        }])->findOrFail($category);
+        $category = Category::findOrFail($category);
+        $storeId = $this->posStoreResolver->storeIdForUser($request->user()->id);
+        $products = Product::query()
+            ->where('category_id', $category->id)
+            ->where('status', 'active')
+            ->withSum([
+                'inventoryStocks as available_stock' => function ($stockQuery) use ($storeId) {
+                    $stockQuery->where('store_id', $storeId);
+                }
+            ], 'quantity')
+            ->latest()
+            ->get();
 
         return response()->json([
             'message' => 'Products filtered by category successfully',
-            'data' => $o
+            'data' => [
+                'category' => $category,
+                'products' => $products,
+            ],
         ]);
     }
     public function show(Product $product)

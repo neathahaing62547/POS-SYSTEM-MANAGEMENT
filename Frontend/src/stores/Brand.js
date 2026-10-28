@@ -22,7 +22,6 @@ export const useBrandStore = defineStore('brand', {
                 const response = await api.get('/brands', {
                     params: { search, page, status }
                 })
-
                 this.brands = response.data.data.data
                 this.pagination = response.data.data
                 this.summary = {
@@ -30,7 +29,6 @@ export const useBrandStore = defineStore('brand', {
                     active: response.data.summary.active_brands,
                     inactive: response.data.summary.inactive_brands
                 }
-
                 return response.data.data
             } catch (error) {
                 this.error = error.response?.data?.message || 'Failed to load brands'
@@ -62,10 +60,8 @@ export const useBrandStore = defineStore('brand', {
                 if (form.logo) {
                     formData.append('logo', form.logo)
                 }
-
                 const response = await api.post('/brands', formData)
                 this.brands.unshift(response.data.data || response.data)
-
                 return response.data
             } catch (error) {
                 if (error.response?.status === 422) {

@@ -36,9 +36,7 @@ const login = async () => {
     if (!validateLogin()) {
         return
     }
-
     loading.value = true
-
     try {
         const response = await auth.login(
             email.value.trim(),
@@ -66,12 +64,10 @@ const login = async () => {
                         <path d="M16 42L32 42L48 26L32 26L16 42Z" fill="#4338CA" />
                     </svg>
                 </div>
-
                 <div class="form-header">
                     <h2>Welcome Back!</h2>
                     <p>Please enter your details</p>
                 </div>
-
                 <div v-if="error" class="alert-error">
                     <i class="bi bi-exclamation-circle"></i>
                     {{ error }}
@@ -80,7 +76,7 @@ const login = async () => {
                 <form @submit.prevent="login">
                     <div class="field">
                         <label for="email">Email Address</label>
-                        <input id="email" v-model="email" type="email" placeholder="Input your email address"
+                        <input id="email" v-model="email" type="emailt" placeholder="Input your email address"
                             :class="{ 'input-error': errors.email }" @input="errors.email = ''">
                         <small v-if="errors.email" class="field-error text-danger">
                             {{ errors.email }}
@@ -97,14 +93,16 @@ const login = async () => {
                     </div>
 
                     <div class="row-between">
-                        <label class="remember">
+                        <label class="remember">        
                             <input type="checkbox" v-model="remember">
                             <span>Remember me</span>
                         </label>
 
-                        <a href="#" class="link">Forgot Password?</a>
+                        <a @click.prevent="router.push({ name: 'Recoveremailpage' })" class="link"
+                            style="cursor: pointer;">
+                            Forgot Password?
+                        </a>
                     </div>
-
                     <button type="submit" class="submit-btn" :disabled="loading">
                         <span v-if="loading">
                             <i class="bi bi-arrow-repeat spin"></i>
@@ -128,6 +126,7 @@ const login = async () => {
                         Continue with Google
                     </button>
 
+
                     <button type="button" class="social-btn telegram-btn">
                         <i class="bi bi-telegram"></i>
                         Continue with Telegram
@@ -141,7 +140,6 @@ const login = async () => {
                 </p>
             </div>
         </div>
-
         <div class="showcase">
             <div class="showcase-card">
                 <div class="scene">
@@ -160,7 +158,6 @@ const login = async () => {
                 <div class="showcase-copy">
                     <h3>Seamless work experience</h3>
                     <p>Everything you need in an easily customizable dashboard</p>
-
                     <div class="dots">
                         <span class="dot active"></span>
                         <span class="dot"></span>
@@ -173,8 +170,6 @@ const login = async () => {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 * {
     box-sizing: border-box;
 }
@@ -222,7 +217,6 @@ const login = async () => {
     width: 100%;
     display: grid;
     grid-template-columns: 50% 50%;
-    font-family: 'Inter', sans-serif;
     background: #fff;
 }
 

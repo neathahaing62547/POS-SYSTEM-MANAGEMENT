@@ -53,7 +53,6 @@ class PermissionSeeder extends Seeder
             'permissions.delete',
 
             'pos.view',
-            'category.view',
             'pos.cart.view',
             'pos.cart.add',
 
@@ -79,8 +78,19 @@ class PermissionSeeder extends Seeder
 
             'return.view',
             'return.create',
+            'sales_return.view',
 
-            'sales_return.view'
+            'cash_register.view',
+            'cash_register.create',
+            'cash_register.open',
+            'cash_register.close',
+            'cash_register.cash_in',
+            'cash_register.cash_out',
+            'expenses.view',
+            'expenses.create',
+            'expenses.update',
+            'expenses.delete',
+            'reports.view',
         ];
 
         foreach ($permissions as $permission) {

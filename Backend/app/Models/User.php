@@ -42,4 +42,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(SalesReturn::class);
     }
+    public function userShifts()
+    {
+        return $this->hasMany(UserShift::class, 'user_id');
+    }
+    public function passwordRecoveryOtps()
+    {
+        return $this->hasMany(PasswordRecoveryOtp::class);
+    }
 }

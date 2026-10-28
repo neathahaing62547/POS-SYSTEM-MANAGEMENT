@@ -1,0 +1,627 @@
+<script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+
+const router = useRouter()
+const auth = useAuthStore()
+
+const email = sessionStorage.getItem('recover_email') || alert('canot catch session storage email')
+const otp = ref('')
+const error = ref('')
+const info = ref('')
+const loading = ref(false)
+const resending = ref(false)
+const goBack = () => {
+    router.push('/recoveremail')
+}
+const verifyOtp = async () => {
+    error.value = ''
+    info.value = ''
+
+    if (!otp.value || otp.value.length !== 6) {
+        error.value = 'Please enter the 6-digit OTP'
+        return
+    }
+    loading.value = true
+    try {
+        await auth.verifyRecoverOtp(email, otp.value)
+        sessionStorage.setItem('recover_otp' , otp.value)
+        console.log(otp.value)
+        router.push('/changepassword')
+    } catch (err) {
+        error.value = auth.error || 'Invalid OTP'
+    } finally {
+        loading.value = false
+    }
+}
+const resendOtp = async () => {
+    error.value = ''
+    info.value = ''
+    resending.value = true
+    try {
+        await auth.recoverEmail(email)
+        info.value = 'A new code has been sent to your email'
+    } catch (err) {
+        error.value = auth.error || 'Could not resend the code'
+    } finally {
+        resending.value = false
+    }
+}
+</script>
+
+<template>
+    <div class="otp-page">
+        <div class="otp-form">
+            <div class="form-wrap">
+                <button type="button" class="back-btn" @click="goBack">
+                    <i class="bi bi-arrow-left"></i>
+                    Back
+                </button>
+
+                <div class="form-content">
+                    <div class="logo">
+                        <svg width="52" height="46" viewBox="0 0 52 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 20L20 20L36 4L20 4L4 20Z" fill="#2563EB" />
+                            <path d="M16 42L32 42L48 26L32 26L16 42Z" fill="#4338CA" />
+                        </svg>
+                    </div>
+
+                    <div class="form-header">
+                        <h2>Enter recovery code</h2>
+                        <p>Enter the 6-digit code sent to <strong>{{ email }}</strong></p>
+                    </div>
+
+                    <div v-if="info" class="alert-info">
+                        <i class="bi bi-check-circle"></i>
+                        <span>{{ info }}</span>
+                    </div>
+
+                    <div v-if="error" class="alert-error">
+                        <i class="bi bi-exclamation-circle"></i>
+                        <span>{{ error }}</span>
+                    </div>
+
+                    <form @submit.prevent="verifyOtp">
+                        <div class="field">
+                            <label for="otp">Verification Code</label>
+                            <div class="otp-boxes">
+                                <div v-for="i in 6" :key="i" class="otp-box" :class="{
+                                    filled: otp[i - 1],
+                                    active: otp.length === i - 1 || (otp.length === 6 && i === 6)
+                                }">
+                                    {{ otp[i - 1] || '' }}
+                                </div>
+
+                                <!-- one real input, sits on top of the boxes -->
+                                <input id="otp" v-model="otp" type="text" inputmode="numeric"
+                                    autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" class="otp-input"
+                                    required @input="otp = otp.replace(/\D/g, '')" />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="submit-btn" :disabled="loading">
+                            <span v-if="loading">
+                                <i class="bi bi-arrow-repeat spin"></i>
+                                Verifying...
+                            </span>
+
+                            <span v-else class="submit-label">
+                                Verify OTP
+                                <i class="bi bi-arrow-right"></i>
+                            </span>
+                        </button>
+                    </form>
+
+                    <div class="resend">
+                        <span>Didn't receive the code?</span>
+                        <button type="button" :disabled="resending" @click="resendOtp">Resend OTP</button>
+                    </div>
+
+                    <p class="security-text">
+                        <i class="bi bi-shield-check"></i>
+                        Your verification code is secure and private.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: showcase image (same as login) -->
+        <div class="showcase">
+            <div class="showcase-card">
+                <div class="scene">
+                    <svg class="scene-bg" viewBox="0 0 400 320" preserveAspectRatio="none">
+                        <line x1="0" y1="80" x2="400" y2="80" stroke="rgba(255,255,255,0.14)" stroke-width="1" />
+                        <line x1="0" y1="170" x2="400" y2="170" stroke="rgba(255,255,255,0.14)" stroke-width="1" />
+                        <line x1="130" y1="0" x2="130" y2="320" stroke="rgba(255,255,255,0.1)" stroke-width="1" />
+                        <line x1="290" y1="0" x2="290" y2="320" stroke="rgba(255,255,255,0.1)" stroke-width="1" />
+                        <ellipse cx="70" cy="55" rx="34" ry="14" fill="rgba(255,255,255,0.16)" />
+                        <ellipse cx="330" cy="90" rx="42" ry="16" fill="rgba(255,255,255,0.14)" />
+                    </svg>
+
+                    <img class="figure" src="@/assets/remote-worker.png" alt="Person working on a laptop">
+                </div>
+
+                <div class="showcase-copy">
+                    <h3>Seamless work experience</h3>
+                    <p>Everything you need in an easily customizable dashboard</p>
+                    <div class="dots">
+                        <span class="dot"></span>
+                        <span class="dot active"></span>
+                        <span class="dot"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<style scoped>
+* {
+    box-sizing: border-box;
+}
+
+.otp-page {
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 50% 50%;
+    background: #fff;
+}
+
+/* ---------- LEFT ---------- */
+.otp-form {
+    min-width: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    background: #f9fafb;
+}
+
+.form-wrap {
+    width: min(100%, 500px);
+    min-height: 620px;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 28px;
+    padding: 36px 50px 42px;
+    box-shadow: 0 12px 40px rgba(17, 24, 39, 0.08);
+}
+
+.back-btn {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    color: #6b7280;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.back-btn:hover {
+    color: #4338ca;
+}
+
+.form-content {
+    width: 100%;
+    margin: auto 0;
+}
+
+.logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.form-header {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.form-header h2 {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: #111827;
+}
+
+.form-header p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.alert-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fdf1ef;
+    color: #b3401f;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.alert-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ecfdf5;
+    color: #047857;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.form-header strong {
+    color: #111827;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.field {
+    margin-bottom: 22px;
+}
+
+.field label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 8px;
+}
+
+.otp-boxes {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+}
+
+.otp-box {
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d1d5db;
+    border-radius: 9px;
+    background: #fff;
+    color: #111827;
+    font-size: 24px;
+    font-weight: 600;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.otp-box.filled {
+    border-color: #6366f1;
+}
+
+/* highlight the current box only while the input is focused */
+.otp-boxes:focus-within .otp-box.active {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+/* the real input covers all boxes, invisible but still receives typing/paste/autofill */
+.otp-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    border: none;
+    outline: none;
+    cursor: text;
+    font-size: 24px;
+}
+
+.submit-btn {
+    width: 100%;
+    height: 48px;
+    border: none;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #6366f1, #4338ca);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.submit-btn:hover:not(:disabled) {
+    opacity: 0.92;
+}
+
+.submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.submit-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.resend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 22px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.resend button {
+    border: none;
+    padding: 0;
+    background: transparent;
+    color: #4338ca;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.resend button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.resend button:hover {
+    text-decoration: underline;
+}
+
+.security-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 24px 0 0;
+    color: #9ca3af;
+    font-size: 12px;
+    text-align: center;
+}
+
+.security-text i {
+    color: #6366f1;
+}
+
+.spin {
+    display: inline-block;
+    margin-right: 6px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ---------- RIGHT ---------- */
+.showcase {
+    min-width: 0;
+    min-height: 100vh;
+    background: linear-gradient(160deg, #8b7bf7, #5b4fe0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+}
+
+.showcase-card {
+    width: min(100%, 500px);
+    min-height: 620px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 28px;
+    padding: 36px 34px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+}
+
+.scene {
+    position: relative;
+    flex: 1;
+    min-height: 330px;
+    margin-bottom: 20px;
+}
+
+.scene-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.figure {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 72%;
+    max-height: 100%;
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.18));
+}
+
+.showcase-copy {
+    color: #fff;
+    text-align: left;
+}
+
+.showcase-copy h3 {
+    margin: 0 0 10px;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.showcase-copy p {
+    margin: 0 0 22px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.6;
+}
+
+.dots {
+    display: flex;
+    gap: 6px;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.dot.active {
+    width: 22px;
+    background: #fff;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (min-width: 861px) and (max-width: 1250px) {
+
+    .otp-form,
+    .showcase {
+        padding: 20px;
+    }
+
+    .form-wrap,
+    .showcase-card {
+        width: 100%;
+        max-width: 520px;
+        min-height: 650px;
+    }
+
+    .form-wrap {
+        padding: 36px 35px 40px;
+    }
+
+    .showcase-card {
+        padding: 34px 30px;
+    }
+
+    .scene {
+        min-height: 380px;
+    }
+
+    .figure {
+        width: 78%;
+    }
+}
+
+@media (max-width: 860px) {
+    .otp-page {
+        grid-template-columns: 1fr;
+    }
+
+    .showcase {
+        display: none;
+    }
+
+    .otp-form {
+        min-height: 100dvh;
+        padding: 16px;
+    }
+
+    .form-wrap {
+        width: 100%;
+        max-width: 500px;
+        min-height: 600px;
+        padding: 32px 28px 35px;
+    }
+}
+
+@media (max-width: 500px) {
+    .otp-form {
+        padding: 10px;
+    }
+
+    .form-wrap {
+        min-height: 560px;
+        padding: 26px 18px 28px;
+        border-radius: 20px;
+    }
+
+    .logo svg {
+        width: 42px;
+        height: 38px;
+    }
+
+    .form-header {
+        margin-bottom: 22px;
+    }
+
+    .form-header h2 {
+        font-size: 21px;
+    }
+
+    .form-header p {
+        font-size: 12px;
+    }
+
+    .field label {
+        font-size: 12px;
+    }
+
+    .otp-boxes {
+        gap: 6px;
+    }
+
+    .otp-box {
+        height: 48px;
+        font-size: 20px;
+    }
+
+    .submit-btn {
+        height: 42px;
+        font-size: 13px;
+    }
+
+    .back-btn,
+    .resend,
+    .resend button {
+        font-size: 12px;
+    }
+
+    .security-text {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 380px) {
+    .otp-boxes {
+        gap: 4px;
+    }
+
+    .otp-box {
+        height: 44px;
+        font-size: 18px;
+    }
+}
+</style>

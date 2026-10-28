@@ -5,14 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Storage;
 
 class SupplierController extends Controller
 {
     public function index(Request $request)
     {
         $query = Supplier::with('purchaseOrders');
-    
+
         if ($request->filled('search')) {
             $search = $request->search;
 
@@ -23,8 +23,13 @@ class SupplierController extends Controller
                     ->orWhere('email', 'like', "%{$search}%");
             });
         }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
         $suppliers = $query
-        ->latest()->paginate(10);
+            ->latest()->paginate(10);
 
         return response()->json([
             'message' => 'Suppliers retrieved successfully',
@@ -39,8 +44,14 @@ class SupplierController extends Controller
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'status' => 'nullable|in:active,inactive',
         ]);
+
+        if ($request->hasFile('image')) {
+            $validated['image'] = $request->file('image')->store('suppliers', 'public');
+        }
+
         $supplier = Supplier::create($validated);
 
         return response()->json([
@@ -63,8 +74,19 @@ class SupplierController extends Controller
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'status' => 'nullable|in:active,inactive',
-        ]);
+        ]); 
+
+        if ($request->hasFile('image')) {
+            if ($supplier->image) {
+                Storage::disk('public')->delete($supplier->image);
+            }
+
+            $validated['image'] = $request->file('image')->store('suppliers', 'public');
+        } else {
+            unset($validated['image']);
+        }
 
         $supplier->update($validated);
 
@@ -75,6 +97,10 @@ class SupplierController extends Controller
     }
     public function destroy(Supplier $supplier)
     {
+        if ($supplier->image) {
+            Storage::disk('public')->delete($supplier->image);
+        }
+
         $supplier->delete();
 
         return response()->json([

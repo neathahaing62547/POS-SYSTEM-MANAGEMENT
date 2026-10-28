@@ -12,7 +12,6 @@ class RolePermissionSeeder extends Seeder
     {
         $admin = Role::where('name', 'admin')->firstOrFail();
         $staff = Role::where('name', 'staff')->firstOrFail();
-
         $admin->permissions()->sync(
             Permission::pluck('id')
         );
@@ -30,12 +29,8 @@ class RolePermissionSeeder extends Seeder
             'inventory.view',
             'inventoryhistory.view',
             'store.view',
-            'users.view',
-            'roles.view',
-            'permissions.view',
             'pos.view',
             'pos.cart.view',
-            'category.view',
             'pos.cart.add',
             'pos.cart.remove',
             'pos.cart.incres',
@@ -45,17 +40,13 @@ class RolePermissionSeeder extends Seeder
             'pos.payment',
             'order.view',
             'orders.update',
-            'payment_method.view',
-            'payment_method.create',
-            'payment_method.update',
-            'payment_method.delete',
-            'payment.view',
-            'payment.update',
-            'payment.delete',
             'return.view',
             'return.create',
-            'return.update',
-            'return.delete',
+            'cash_register.view',
+            'cash_register.open',
+            'cash_register.close',
+            'cash_register.cash_in',
+            'cash_register.cash_out'
 
 
         ])->pluck('id');

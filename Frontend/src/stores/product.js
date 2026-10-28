@@ -185,7 +185,6 @@ export const useProductStore = defineStore('product', {
                 this.error =
                     error.response?.data?.message ||
                     'Failed to update product'
-
                 throw error
             } finally {
                 this.loading = false

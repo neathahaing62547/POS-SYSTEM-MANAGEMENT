@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
-
 class CategoryController extends Controller
 {
     public function index(Request $request)
@@ -38,7 +37,6 @@ class CategoryController extends Controller
             'data' => $category
         ]);
     }
-
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -47,7 +45,6 @@ class CategoryController extends Controller
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'status' => 'nullable|in:active,inactive',
         ]);
-
         if ($request->hasFile('image')) {
             $validated['image'] = $request->file('image')->store('categories', 'public');
         }
@@ -59,7 +56,6 @@ class CategoryController extends Controller
             'data' => $category
         ], 201);
     }
-
     public function show(Category $category)
     {
         return response()->json([
@@ -67,7 +63,6 @@ class CategoryController extends Controller
             'data' => $category
         ]);
     }
-
     public function update(Request $request, Category $category)
     {
         $validated = $request->validate([
@@ -93,7 +88,6 @@ class CategoryController extends Controller
             'data' => $category
         ]);
     }
-
     public function destroy(Category $category)
     {
         if ($category->products()->exists()) {
@@ -101,11 +95,9 @@ class CategoryController extends Controller
                 'message' => 'Cannot delete this category because it has products.'
             ], 422);
         }
-
         if ($category->image) {
             Storage::disk('public')->delete($category->image);
         }
-
         $category->delete();
 
         return response()->json([

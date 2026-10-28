@@ -20,15 +20,66 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\SalesReturnController;
-
+use  App\Http\Controllers\Api\CashRegisterController;
+use App\Http\Controllers\Api\CashTransactionController;
+use App\Http\Controllers\Api\ExpenseController;
+use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\DashboardController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/login/verify-otp', [AuthController::class, 'verifyLoginOtp']);
+Route::post('/recoveremail', [AuthController::class, 'recoveremail']);
+Route::post('/recoveremail/otpverify', [AuthController::class, 'verifyRecoverOtp']);
+Route::post('/changepassword', [AuthController::class, 'ChangePassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'me']);
+
+    Route::get('/cash-registers', [CashRegisterController::class, 'index'])
+        ->middleware('permission:cash_register.view');
+
+    Route::get('/cash-transactions', [CashTransactionController::class, 'index'])
+        ->middleware('permission:cash_register.view');
+
+    Route::post('/cash-transactions/cash-in', [CashTransactionController::class, 'cashIn'])
+        ->middleware('permission:cash_register.cash_in');
+
+    Route::post('/cash-transactions/cash-out', [CashTransactionController::class, 'cashOut'])
+        ->middleware('permission:cash_register.cash_out');
+
+    Route::get('/expenses', [ExpenseController::class, 'index'])
+        ->middleware('permission:expenses.view');
+
+    Route::get('/reports', [ReportController::class, 'index'])
+        ->middleware('permission:reports.view');
+
+    Route::post('/expenses', [ExpenseController::class, 'store'])
+        ->middleware('permission:expenses.create');
+
+    Route::put('/expenses/{expense}', [ExpenseController::class, 'update'])
+        ->middleware('permission:expenses.update');
+
+    Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])
+        ->middleware('permission:expenses.delete');
+
+    Route::post('/cash-registers', [CashRegisterController::class, 'store'])
+        ->middleware('permission:cash_register.create');
+
+    Route::post('/cash-registers/open-shift', [CashRegisterController::class, 'openShift'])
+        ->middleware('permission:cash_register.open');
+
+    Route::get('/cash-registers/current-shift', [CashRegisterController::class, 'currentShift'])
+        ->middleware('permission:cash_register.view');
+
+    Route::post('/cash-registers/close-shift', [CashRegisterController::class, 'closeShift'])
+        ->middleware('permission:cash_register.close');
+
+    Route::get('/cash-registers/{id}', [CashRegisterController::class, 'show'])
+        ->whereNumber('id')
+        ->middleware('permission:cash_register.view');
+
 
     Route::get('/brands', [BrandController::class, 'index'])
         ->middleware('permission:brands.view');
@@ -101,7 +152,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/purchases', [PurchaseController::class, 'store'])
         ->middleware('permission:purchase.create');
 
-    Route::get('/purchases/{purchase}', [PurchaseController::class, 'show'])
+    Route::get('/purchases/{id}', [PurchaseController::class, 'show'])
         ->middleware('permission:purchase.view');
 
     Route::put('/purchases/{purchase}', [PurchaseController::class, 'update'])
@@ -145,6 +196,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/pos/products', [PosController::class, 'index'])
         ->middleware('permission:pos.view');
 
+    Route::get('/pos/categories', [PosController::class, 'categories'])
+        ->middleware('permission:pos.view');
+
     Route::get('/pos/categorys/{category}', [PosController::class, 'filltercategory'])
         ->middleware('permission:category.view');
 
@@ -172,6 +226,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('pos/checkout/confirm', [CheckoutController::class, 'confirm'])
         ->middleware('permission:checkout.confirm');
 
+    Route::post('/pos/aba-payway', [CheckoutController::class, 'abaPayway',])
+        ->middleware('permission:checkout.confirm');
+
     Route::post('pos/payment-success/{paymentId}', [CheckoutController::class, 'paymentSuccess'])
         ->middleware('permission:pos.payment');
 
@@ -195,85 +252,91 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/sales-returns', [SalesReturnController::class, 'index'])
         ->middleware('permission:sales_return.view');
-        
+
     Route::get('/sales-returns/{salesReturn}', [SalesReturnController::class, 'show'])
         ->middleware('permission:sales_return.view');
 
 
-    Route::middleware('role:admin')->group(function () {
+    Route::get('/users', [UserController::class, 'index'])
+        ->middleware('permission:users.view');
 
-        Route::get('/users', [UserController::class, 'index'])
-            ->middleware('permission:users.view');
+    Route::post('/users', [UserController::class, 'store'])
+        ->middleware('permission:users.create');
 
-        Route::post('/users', [UserController::class, 'store'])
-            ->middleware('permission:users.create');
+    Route::get('/users/{user}', [UserController::class, 'show'])
+        ->middleware('permission:users.view');
 
-        Route::get('/users/{user}', [UserController::class, 'show'])
-            ->middleware('permission:users.view');
+    Route::put('/users/{user}', [UserController::class, 'update'])
+        ->middleware('permission:users.update');
 
-        Route::put('/users/{user}', [UserController::class, 'update'])
-            ->middleware('permission:users.update');
-
-        Route::delete('/users/{user}', [UserController::class, 'destroy'])
-            ->middleware('permission:users.delete');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])
+        ->middleware('permission:users.delete');
 
 
-        Route::get('/roles', [RoleController::class, 'index'])
-            ->middleware('permission:roles.view');
+    Route::get('/roles', [RoleController::class, 'index'])
+        ->middleware('permission:roles.view');
 
-        Route::post('/roles', [RoleController::class, 'store'])
-            ->middleware('permission:roles.create');
+    Route::post('/roles', [RoleController::class, 'store'])
+        ->middleware('permission:roles.create');
 
-        Route::get('/roles/{role}', [RoleController::class, 'show'])
-            ->middleware('permission:roles.view');
+    Route::get('/roles/{role}', [RoleController::class, 'show'])
+        ->middleware('permission:roles.view');
 
-        Route::put('/roles/{role}', [RoleController::class, 'update'])
-            ->middleware('permission:roles.update');
+    Route::put('/roles/{role}', [RoleController::class, 'update'])
+        ->middleware('permission:roles.update');
 
-        Route::delete('/roles/{role}', [RoleController::class, 'destroy'])
-            ->middleware('permission:roles.delete');
+    Route::delete('/roles/{role}', [RoleController::class, 'destroy'])
+        ->middleware('permission:roles.delete');
 
 
-        Route::get('/permissions', [PermissionController::class, 'index'])
-            ->middleware('permission:permissions.view');
+    Route::get('/permissions', [PermissionController::class, 'index'])
+        ->middleware('permission:permissions.view');
 
-        Route::post('/permissions', [PermissionController::class, 'store'])
-            ->middleware('permission:permissions.create');
+    Route::post('/permissions', [PermissionController::class, 'store'])
+        ->middleware('permission:permissions.create');
 
-        Route::get('/permissions/{permission}', [PermissionController::class, 'show'])
-            ->middleware('permission:permissions.view');
+    Route::get('/permissions/{permission}', [PermissionController::class, 'show'])
+        ->middleware('permission:permissions.view');
 
-        Route::put('/permissions/{permission}', [PermissionController::class, 'update'])
-            ->middleware('permission:permissions.update');
+    Route::put('/permissions/{permission}', [PermissionController::class, 'update'])
+        ->middleware('permission:permissions.update');
 
-        Route::delete('/permissions/{permission}', [PermissionController::class, 'destroy'])
-            ->middleware('permission:permissions.delete');
+    Route::delete('/permissions/{permission}', [PermissionController::class, 'destroy'])
+        ->middleware('permission:permissions.delete');
 
-        Route::get('/payment-methods', [PaymentMethodController::class, 'index'])
-            ->middleware('permission:payment_method.view');
+    Route::get('/payment-methods', [PaymentMethodController::class, 'index'])
+        ->middleware('permission:payment_method.view');
 
-        Route::post('/payment-methods', [PaymentMethodController::class, 'store'])
-            ->middleware('permission:payment_method.create');
+    Route::post('/payment-methods', [PaymentMethodController::class, 'store'])
+        ->middleware('permission:payment_method.create');
 
-        Route::get('/payment-methods/{id}', [PaymentMethodController::class, 'show'])
-            ->middleware('permission:payment_method.view');
+    Route::get('/payment-methods/{id}', [PaymentMethodController::class, 'show'])
+        ->middleware('permission:payment_method.view');
 
-        Route::put('/payment-methods/{id}', [PaymentMethodController::class, 'update'])
-            ->middleware('permission:payment_method.update');
+    Route::put('/payment-methods/{id}', [PaymentMethodController::class, 'update'])
+        ->middleware('permission:payment_method.update');
 
-        Route::delete('/payment-methods/{id}', [PaymentMethodController::class, 'destroy'])
-            ->middleware('permission:payment_method.delete');
+    Route::delete('/payment-methods/{id}', [PaymentMethodController::class, 'destroy'])
+        ->middleware('permission:payment_method.delete');
 
-        Route::get('/payments', [PaymentController::class, 'index'])
-            ->middleware('permission:payment.view');
+    Route::get('/payments', [PaymentController::class, 'index'])
+        ->middleware('permission:payment.view');
 
-        Route::get('/payments/{patments}', [PaymentController::class, 'show'])
-            ->middleware('permission:payment.view');
+    Route::get('/payments/{patments}', [PaymentController::class, 'show'])
+        ->middleware('permission:payment.view');
 
-        Route::patch('/payment/{payment}', [PaymentController::class, 'update'])
-            ->middleware('permission:payment.update');
+    Route::patch('/payment/{payment}', [PaymentController::class, 'update'])
+        ->middleware('permission:payment.update');
 
-        Route::delete('/payment/{payments}', [PaymentController::class, 'destroy'])
-            ->middleware('permission:payment.delete');
-    });
+    Route::delete('/payment/{payments}', [PaymentController::class, 'destroy'])
+        ->middleware('permission:payment.delete');
+
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->middleware('permission:maindashboard.view');
+
+    Route::get('/dashboard/sale-chart', [DashboardController::class, 'saleChart'])
+        ->middleware('permission:maindashboard.view');
+        
+    Route::get('/dashboard/quick-view', [ DashboardController::class,'dashboardQuickView',
+    ])->middleware('permission:maindashboard.view');
 });

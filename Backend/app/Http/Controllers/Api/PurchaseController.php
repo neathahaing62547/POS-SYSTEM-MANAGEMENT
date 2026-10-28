@@ -16,6 +16,7 @@ class PurchaseController extends Controller
     public function index(Request $request)
     {
         $query = Purchase::with([
+            'store',
             'supplier',
             'items.product.brand',
             'items.product.category'
@@ -37,13 +38,24 @@ class PurchaseController extends Controller
                     });
             });
         }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('store_id')) {
+            $query->where('store_id', $request->store_id);
+        }
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
         $purchases = $query
             ->latest()
             ->paginate(25);
+
         $purchases->getCollection()->transform(function ($purchase) {
             return [
                 'id' => $purchase->id,
                 'po_number' => $purchase->po_number,
+                'store' => $purchase->store,
                 'supplier' => $purchase->supplier,
                 'status' => $purchase->status,
                 'total_items' => $purchase->items->count(),
@@ -53,9 +65,17 @@ class PurchaseController extends Controller
                 'items' => $purchase->items,
             ];
         });
+        $summary = [
+            'total' => Purchase::count(),
+            'pending' => Purchase::where('status', 'pending')->count(),
+            'received' => Purchase::where('status', 'received')->count(),
+            'cancelled' => Purchase::where('status', 'cancelled')->count(),
+            'total_cost' => Purchase::sum('total_cost'),
+        ];
 
         return response()->json([
             'message' => 'Purchases retrieved successfully',
+            'summary' => $summary,
             'data' => $purchases
         ]);
     }
@@ -106,16 +126,28 @@ class PurchaseController extends Controller
             ]),
         ], 201);
     }
-    public function show(Request $request, Purchase $purchase)
+    public function show(Request $request, $id)
     {
+        $purchase = Purchase::findOrFail($id);
         $purchase->load([
+            'store',
             'supplier',
+            'items.product',
             'items.product.brand',
             'items.product.category'
         ]);
+        $purchase->total_items = $purchase->items->count();
+        $purchase->total_quantity = $purchase->items->sum('quantity');
+        $purchase->total_cost = number_format(
+            $purchase->items->sum('subtotal'),
+            2,
+            '.',
+            ''
+        );
+
         return response()->json([
-            'message' => 'Purchase created successfully',
-            'data' =>  $purchase
+            'message' => 'Purchase retrieved successfully',
+            'data' => $purchase
         ]);
     }
     public function update(Request $request, Purchase $purchase)
@@ -148,36 +180,29 @@ class PurchaseController extends Controller
             ]);
 
             $purchase->items()->delete();
-
             $total_cost = 0;
 
             foreach ($validated['items'] as $item) {
-
                 $subtotal = $item['quantity'] * $item['cost_price'];
-
                 $purchase->items()->create([
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
                     'cost_price' => $item['cost_price'],
                     'subtotal' => $subtotal,
                 ]);
-
                 $total_cost += $subtotal;
             }
             $purchase->update([
                 'total_cost' => $total_cost,
             ]);
-
             return $purchase;
         });
-
         $purchase->load([
             'store',
             'supplier',
             'items.product.brand',
             'items.product.category',
         ]);
-
         return response()->json([
             'message' => 'Purchase updated successfully',
             'data' => $purchase,
@@ -205,7 +230,6 @@ class PurchaseController extends Controller
                     'Message' => 'Purchase Con not Be Revice '
                 ]);
             }
-
             foreach ($purchase->items as $item) {
                 $inventory = InventoryStock::firstOrCreate(
                     [

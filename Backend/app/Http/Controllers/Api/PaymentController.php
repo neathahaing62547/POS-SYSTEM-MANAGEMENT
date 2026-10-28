@@ -13,35 +13,33 @@ class PaymentController extends Controller
     {
         $query = Payment::query();
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim($request->search);
             $query->where(function ($q) use ($search) {
                 $q->where('transaction_id', 'like', "%{$search}%")
                     ->orWhere('amount', 'like', "%{$search}%")
-                    ->orWhere('payment_method_id', 'like', "%{$search}%")
+                    ->orWhere('payment_method', 'like', "%{$search}%")
                     ->orWhere('status', 'like', "%{$search}%");
             });
         }
-        $amountpaymentaba = Payment::whereHas('paymentMethod' , function ($q){
-              $q->where('name' ,'ABA');
-        })->count();
-       $cashpayment = Payment::whereHas('paymentMethod' , function ($q){
-              $q->where('name' ,'Cash');
-        })->count();
-        $amountpayment = Payment::count();
-        $totalpayment = Payment::sum('amount');
-        $payment = $query->latest()->paginate(30);
-        $payment->load(   'order.cashier:id,username', 'paymentMethod');
+        $abaPayments = Payment::whereRaw('LOWER(payment_method) = ?', ['aba'])->count();
+        $cashPayments = Payment::whereRaw('LOWER(payment_method) = ?', ['cash'])->count();
+        $paymentCount = Payment::count();
+        $totalAmount = Payment::sum('amount');
+        $payment = $query
+            ->with(['order:id,invoice_no,cashier_id', 'order.cashier:id,username'])
+            ->latest()
+            ->get();
+
         return response()->json([
-            'Message' => 'Payment  retrieved successfully',
+            'message' => 'Payments retrieved successfully',
             'summary' => [
-                'CASH PAY' => $cashpayment,
-                'ABA PAY ' => $amountpaymentaba,
-                'Total PAyment' => $totalpayment,
-                'Amount Payment' => $amountpayment,
+                'cash_payments' => $cashPayments,
+                'aba_payments' => $abaPayments,
+                'pending_payments' => Payment::where('status', 'pending')->count(),
+                'total_amount' => $totalAmount,
+                'payment_count' => $paymentCount,
             ],
-            'data' => [
-                'data' => $payment,
-            ]
+            'data' => $payment,
         ]);
     }
 }

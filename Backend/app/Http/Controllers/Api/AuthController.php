@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Mail\OtpMail;
+use App\Models\PasswordRecoveryOtp;
 use App\Models\Otp;
 use App\Models\User;
+use App\Services\OtpEmailRecoverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -41,7 +43,7 @@ class AuthController extends Controller
                 'message' => 'Your account is not active.'
             ], 403);
         }
-     $otp = random_int(100000, 999999);
+        $otp = random_int(100000, 999999);
 
         Otp::where('user_id', $user->id)
             ->where('type', 'login')
@@ -96,17 +98,17 @@ class AuthController extends Controller
         $user->update([
             'last_login_at' => now(),
         ]);
-        $token = $user->createToken('api-token-01384dsjhfsaff-dfashfjdsadskjfhf')->plainTextToken;
+        $token = $user->createToken('api-token-01384dsjhfsaff-dfashfjdsadskjfhf-natha-sakfjsdadhjfg
+        asxdsfafdsadfsadfsafsdafsdfdsafsdafdsafsdafdsfdsafsafsd')->plainTextToken;
         return response()->json([
             'message' => 'Login successful.',
             'token' => $token,
-            'user' => $user->load('roles'),
+            'user' => $user->load('roles.permissions'),
         ]);
     }
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
-
         return response()->json([
             'message' => 'Logout successful.'
         ]);
@@ -114,7 +116,104 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return response()->json(
-            $request->user()->load('roles')
+            $request->user()->load('roles.permissions')
         );
+    }
+    public function recoveremail(Request $request, OtpEmailRecoverService $otpEmailRecoverService)
+    {
+        $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Email not found.',
+            ], 404);
+        }
+        $otp = rand(100000, 999999);
+        PasswordRecoveryOtp::create([
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'otp' => Hash::make((string)$otp),
+            'type' => 'recovery otp',
+            'expires_at' => now()->addMinutes(5),
+        ]);
+        $otpEmailRecoverService->send(
+            $user->email,
+            $otp
+        );
+        return response()->json([
+            'message' => 'Recovery OTP sent successfully.',
+        ]);
+    }
+    public function verifyRecoverOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'otp' => ['required', 'digits:6'],
+        ]);
+        $user = User::where('email', $validated['email'])->first();
+        if (!$user) {
+            return response()->json([
+                'message' => 'Email not found in users.'
+            ], 404);
+        }
+        $recovery = PasswordRecoveryOtp::where('user_id', $user->id)
+            ->where('email', $validated['email'])
+            ->where('type', 'recovery otp')
+            ->whereNull('verified_at')
+            ->latest()
+            ->first();
+        if (!$recovery) {
+            return response()->json([
+                'message' => 'Email does not match recovery record.'
+            ], 404);
+        }
+        if (now()->greaterThan($recovery->expires_at)) {
+            return response()->json([
+                'message' => 'OTP has expired.'
+            ], 422);
+        }
+        if (!Hash::check($validated['otp'], $recovery->otp)) {
+            return response()->json([
+                'message' => 'OTP does not match.'
+            ], 422);
+        }
+        $recovery->update([
+            'verified_at' => now(),
+        ]);
+        return response()->json([
+            'message' => 'OTP verified successfully.',
+            'user_id' => $user->id,
+        ]);
+    }
+    public function ChangePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'email'    => ['required', 'email'],
+            'password' => ['required', 'string', 'min:8'],
+        ]);
+        $user = User::where('email', $validated['email'])->first();
+        if (!$user) {
+            return response()->json(['message' => 'Email not found.'], 404);
+        }
+        $recovery = PasswordRecoveryOtp::where('user_id', $user->id)
+            ->where('email', $validated['email'])
+            ->where('type', 'recovery otp')
+            ->whereNotNull('verified_at')
+            ->where('verified_at', '>=', now()->subMinutes(10))
+            ->latest()
+            ->first();
+        if (!$recovery) {
+            return response()->json([
+                'message' => 'Verification expired. Please request a new code.'
+            ], 403);
+        }
+        $user->update([
+            'password_hash' =>  Hash::make($validated['password']),
+        ]);
+        PasswordRecoveryOtp::where('user_id' ,$user->id)->delete();
+        return response()->json(['message' => 'Password changed successfully.']);
     }
 }

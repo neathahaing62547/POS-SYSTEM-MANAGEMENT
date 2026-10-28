@@ -69,6 +69,12 @@ class PaymentMethodController extends Controller
     {
         $method = PaymentMethod::findOrFail($id);
 
+        if ($method->payments()->exists()) {
+            return response()->json([
+                'message' => 'This payment method has payment records and cannot be deleted. Set it to inactive instead.'
+            ], 422);
+        }
+
         $method->delete();
 
         return response()->json([

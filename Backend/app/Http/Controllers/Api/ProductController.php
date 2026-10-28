@@ -32,7 +32,6 @@ class ProductController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('sku', 'like', "%{$search}%")
@@ -59,13 +58,22 @@ class ProductController extends Controller
         }
         if ($request->filled('stock')) {
             if ($request->stock === 'low') {
-                $query->having('inventory_stocks_sum_quantity', '<=', 10);
+                $query->whereRaw(
+                    '(select coalesce(sum(inventory_stocks.quantity), 0)
+                  from inventory_stocks
+                  where inventory_stocks.product_id = products.id) <= ?',
+                    [10]
+                );
             }
             if ($request->stock === 'in') {
-                $query->having('inventory_stocks_sum_quantity', '>', 10);
+                $query->whereRaw(
+                    '(select coalesce(sum(inventory_stocks.quantity), 0)
+                  from inventory_stocks
+                  where inventory_stocks.product_id = products.id) > ?',
+                    [10]
+                );
             }
         }
-
         $products = $query
             ->latest('id')
             ->paginate(50);
@@ -178,7 +186,6 @@ class ProductController extends Controller
             Storage::disk('public')->delete($product->image);
         }
         $product->delete();
-
         return response()->json([
             'message' => 'Product deleted successfully'
         ]);

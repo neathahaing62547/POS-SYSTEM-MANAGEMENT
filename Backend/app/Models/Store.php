@@ -12,7 +12,7 @@ class Store extends Model
         'name',
         'phone',
         'address',
-        'status'
+        'status',
     ];
 
     public function inventoryStocks(): HasMany
@@ -26,5 +26,9 @@ class Store extends Model
     public function stockHistories()
 {
     return $this->hasMany(StockHistory::class);
+}   
+public function cashRegisters(): HasMany
+{
+    return $this->hasMany(CashRegister::class);
 }
 }

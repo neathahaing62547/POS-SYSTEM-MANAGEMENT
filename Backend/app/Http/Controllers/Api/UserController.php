@@ -17,7 +17,6 @@ class UserController extends Controller
     {
         return response()->json(User::with('roles')->latest()->get());
     }
-
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -30,7 +29,6 @@ class UserController extends Controller
             'role_ids' => ['nullable', 'array'],
             'role_ids.*' => ['integer', 'exists:roles,id'],
         ]);
-
         $user = User::create([
             'username' => $validated['username'],
             'full_name' => $validated['full_name'] ?? null,
@@ -47,7 +45,6 @@ class UserController extends Controller
             $user->load('roles')
         ],201);
     }
-
     public function show(User $user): JsonResponse
     {
         return response()->json($user->load('roles'));

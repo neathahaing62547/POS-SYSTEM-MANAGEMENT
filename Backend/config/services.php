@@ -34,5 +34,13 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-
+    'aba_payway' => [
+        'base_url' => env(
+            'ABA_PAYWAY_BASE_URL',
+            'https://checkout-sandbox.payway.com.kh'
+        ),
+        'merchant_id' => env('ABA_PAYWAY_MERCHANT_ID'),
+        'public_key' => env('ABA_PAYWAY_PUBLIC_KEY'),
+        'currency' => env('ABA_PAYWAY_CURRENCY', 'USD'),
+    ],
 ];

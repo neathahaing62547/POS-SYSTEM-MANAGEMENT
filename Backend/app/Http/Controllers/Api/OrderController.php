@@ -8,13 +8,37 @@ use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $orders = Order::with([
+        $request->validate([
+            'search' => 'nullable|string|max:255',
+            'status' => 'nullable|in:pending,processing,completed,cancelled,paid',
+        ]);
+
+        $query = Order::with([
             'items.product',
-            'payment.paymentMethod',
-            'cashier:id,full_name'
-        ])
+            'payment',
+            'cashier:id,full_name,username',
+        ]);
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($orderQuery) use ($search) {
+                $orderQuery
+                    ->where('invoice_no', 'like', "%{$search}%")
+                    ->orWhereHas('cashier', function ($cashierQuery) use ($search) {
+                        $cashierQuery
+                            ->where('full_name', 'like', "%{$search}%")
+                            ->orWhere('username', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $orders = $query
             ->latest()
             ->get();
         $totalorder = Order::count();

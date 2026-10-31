@@ -7,7 +7,6 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\CheckRole;
-use Throwable;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(

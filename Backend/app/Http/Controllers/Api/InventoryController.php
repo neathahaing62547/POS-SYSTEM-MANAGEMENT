@@ -15,7 +15,6 @@ class InventoryController extends Controller
     public function index(Request $request)
     {
         $query = InventoryStock::with(['product', 'store']);
-
         if ($request->filled('search')) {
             $search = $request->search;
 
@@ -29,6 +28,15 @@ class InventoryController extends Controller
                     });
             });
         }
+        if ($request->filled('status')) {
+            $query->where('status',  $request->status);
+        }
+        if ($request->filled('lowstock')) {
+            $query->where('quantity', '<=',  'alert_qunatity');
+        }
+        if ($request->filled('category_id')) {
+            $query->where('category_id',  $request->category_id);
+        }
         $totalProducts = (clone $query)->count();
         $lowStock = (clone $query)
             ->where('quantity', '>', 0)
@@ -41,16 +49,15 @@ class InventoryController extends Controller
             ->latest()
             ->paginate(25);
         return response()->json([
+             'success' => true,
             'message' => 'Inventory retrieved successfully',
-
             'summary' => [
                 'total_products' => $totalProducts,
                 'low_stock' => $lowStock,
                 'out_of_stock' => $outOfStock,
             ],
-
             'data' => $inventory,
-        ]);
+        ] ,200);
     }
     public function show(InventoryStock $inventoryStock)
     {
@@ -65,7 +72,6 @@ class InventoryController extends Controller
         $validated = $request->validate([
             'product_id' => ['sometimes', 'integer', 'exists:products,id'],
         ]);
-
         $history = StockHistory::with(['user', 'store', 'product.brand', 'product.category'])
             ->when(
                 isset($validated['product_id']),

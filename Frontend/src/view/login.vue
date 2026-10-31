@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import router from '@/router'
 
@@ -11,6 +11,22 @@ const remember = ref(false)
 const error = ref('')
 const errors = ref({})
 const loading = ref(false)
+const success = ref(false)
+const opening = ref(false)
+const entering = ref(true)
+
+onMounted(() => {
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            entering.value = false
+        })
+    })
+})
+
+const SUCCESS_PAUSE = 500
+const DOOR_DURATION = 1100
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 const validateLogin = () => {
     errors.value = {}
@@ -31,6 +47,8 @@ const validateLogin = () => {
 }
 
 const login = async () => {
+    if (success.value) return
+
     error.value = ''
 
     if (!validateLogin()) {
@@ -38,13 +56,19 @@ const login = async () => {
     }
     loading.value = true
     try {
-        const response = await auth.login(
+        await auth.login(
             email.value.trim(),
             password.value,
             remember.value
         )
 
-        console.log(response)
+        loading.value = false
+        success.value = true
+        await wait(SUCCESS_PAUSE)
+
+        opening.value = true
+        await wait(DOOR_DURATION)
+
         router.push('/otp')
     } catch (err) {
         error.value = auth.error || 'Invalid email or password'
@@ -55,7 +79,18 @@ const login = async () => {
 </script>
 
 <template>
-    <div class="login-page">
+    <div class="login-page" :class="{ success, opening, entering }">
+        <div class="door-reveal" aria-hidden="true">
+            <div class="reveal-content">
+                <div class="reveal-check">
+                    <i class="bi bi-check-lg"></i>
+                </div>
+                <h3>Login successful</h3>
+                <p>Sending your verification code...</p>
+                <div class="reveal-bar"><span></span></div>
+            </div>
+        </div>
+
         <div class="login-form">
             <div class="form-wrap">
                 <div class="logo">
@@ -73,11 +108,11 @@ const login = async () => {
                     {{ error }}
                 </div>
 
-                <form @submit.prevent="login">
+                <form novalidate @submit.prevent="login">
                     <div class="field">
                         <label for="email">Email Address</label>
-                        <input id="email" v-model="email" type="emailt" placeholder="Input your email address"
-                            :class="{ 'input-error': errors.email }" @input="errors.email = ''">
+                        <input id="email" v-model="email" type="email" placeholder="Input your email address"
+                            :class="{ 'input-error': errors.email }" :disabled="success" @input="errors.email = ''">
                         <small v-if="errors.email" class="field-error text-danger">
                             {{ errors.email }}
                         </small>
@@ -86,15 +121,16 @@ const login = async () => {
                     <div class="field">
                         <label for="password">Password</label>
                         <input id="password" v-model="password" type="password" placeholder="Input your password"
-                            :class="{ 'input-error': errors.password }" @input="errors.password = ''">
-                        <small v-if="errors.password" class="field-error" @input="errors.password">
+                            :class="{ 'input-error': errors.password }" :disabled="success"
+                            @input="errors.password = ''">
+                        <small v-if="errors.password" class="field-error">
                             {{ errors.password }}
                         </small>
                     </div>
 
                     <div class="row-between">
-                        <label class="remember">        
-                            <input type="checkbox" v-model="remember">
+                        <label class="remember">
+                            <input type="checkbox" v-model="remember" :disabled="success">
                             <span>Remember me</span>
                         </label>
 
@@ -103,10 +139,15 @@ const login = async () => {
                             Forgot Password?
                         </a>
                     </div>
-                    <button type="submit" class="submit-btn" :disabled="loading">
+                    <button type="submit" class="submit-btn" :disabled="loading || success">
                         <span v-if="loading">
                             <i class="bi bi-arrow-repeat spin"></i>
                             Signing in...
+                        </span>
+
+                        <span v-else-if="success" class="submit-label">
+                            <i class="bi bi-check-circle"></i>
+                            Success
                         </span>
 
                         <span v-else class="submit-label">
@@ -125,7 +166,6 @@ const login = async () => {
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
                         Continue with Google
                     </button>
-
 
                     <button type="button" class="social-btn telegram-btn">
                         <i class="bi bi-telegram"></i>
@@ -174,20 +214,158 @@ const login = async () => {
     box-sizing: border-box;
 }
 
-.field input {
+.login-page {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100dvh;
     width: 100%;
-    height: 48px;
-    border: 1px solid #055cdd;
-    border-radius: 9px;
-    padding: 0 14px;
-    font-size: 15px;
-    outline: none;
+    display: grid;
+    grid-template-columns: 50% 50%;
     background: #fff;
+    overflow: hidden;
 }
 
-.field input:focus {
-    border: 1px solid #0260ee;
-    box-shadow: none;
+.login-form,
+.showcase {
+    position: relative;
+    z-index: 1;
+    transition:
+        transform 1s cubic-bezier(0.76, 0, 0.24, 1),
+        box-shadow 1s ease;
+    will-change: transform;
+}
+
+.opening .login-form {
+    transform: translateX(-100%);
+    box-shadow: 16px 0 50px rgba(17, 24, 39, 0.18);
+    pointer-events: none;
+}
+
+.opening .showcase {
+    transform: translateX(100%);
+    box-shadow: -16px 0 50px rgba(17, 24, 39, 0.25);
+    pointer-events: none;
+}
+
+.entering .login-form {
+    transform: translateX(-100%);
+    box-shadow: 16px 0 50px rgba(17, 24, 39, 0.18);
+}
+
+.entering .showcase {
+    transform: translateX(100%);
+    box-shadow: -16px 0 50px rgba(17, 24, 39, 0.25);
+}
+
+.door-reveal {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 50% 40%, #ffffff 0%, #eef2ff 60%, #e0e7ff 100%);
+}
+
+.reveal-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    opacity: 0;
+    transform: scale(0.9);
+}
+
+.opening .reveal-content {
+    opacity: 1;
+    transform: none;
+    transition:
+        opacity 0.6s ease 0.35s,
+        transform 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.35s;
+}
+
+.reveal-check {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    margin-bottom: 8px;
+    border-radius: 50%;
+    background: #12b76a;
+    color: #fff;
+    font-size: 34px;
+    box-shadow: 0 0 0 0 rgba(18, 183, 106, 0.45);
+}
+
+.opening .reveal-check {
+    animation: check-pulse 1.4s ease-out infinite;
+}
+
+@keyframes check-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(18, 183, 106, 0.45);
+    }
+
+    100% {
+        box-shadow: 0 0 0 28px rgba(18, 183, 106, 0);
+    }
+}
+
+.reveal-content h3 {
+    margin: 0;
+    color: #101828;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.reveal-content p {
+    margin: 0;
+    color: #667085;
+    font-size: 14px;
+}
+
+.reveal-bar {
+    width: 160px;
+    height: 4px;
+    margin-top: 14px;
+    overflow: hidden;
+    border-radius: 4px;
+    background: #d9e0f5;
+}
+
+.reveal-bar span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 4px;
+    background: #4f46e5;
+    transform: scaleX(0);
+    transform-origin: left;
+}
+
+.opening .reveal-bar span {
+    transform: scaleX(1);
+    transition: transform 1s ease 0.5s;
+}
+
+.success .submit-btn {
+    background: #12b76a;
+    opacity: 1;
+    animation: btn-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes btn-pop {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.03);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 .field input.input-error {
@@ -209,15 +387,6 @@ const login = async () => {
 .google-btn img {
     width: 18px;
     height: 18px;
-}
-
-.login-page {
-    min-height: 100vh;
-    min-height: 100dvh;
-    width: 100%;
-    display: grid;
-    grid-template-columns: 50% 50%;
-    background: #fff;
 }
 
 .login-form {
@@ -354,6 +523,7 @@ const login = async () => {
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
+    transition: background 0.3s;
 }
 
 .submit-btn:disabled {

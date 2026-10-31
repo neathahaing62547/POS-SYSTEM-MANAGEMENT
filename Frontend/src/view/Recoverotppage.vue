@@ -1,21 +1,45 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
 
-const email = sessionStorage.getItem('recover_email') || alert('canot catch session storage email')
+const email = sessionStorage.getItem('recover_email') || ''
 const otp = ref('')
 const error = ref('')
 const info = ref('')
 const loading = ref(false)
 const resending = ref(false)
+const verified = ref(false)
+const opening = ref(false)
+const entering = ref(true)
+
+const SUCCESS_PAUSE = 600
+const DOOR_DURATION = 1100
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+onMounted(() => {
+    if (!email) {
+        router.replace('/recoveremail')
+        return
+    }
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            entering.value = false
+        })
+    })
+})
+
 const goBack = () => {
     router.push('/recoveremail')
 }
+
 const verifyOtp = async () => {
+    if (verified.value) return
+
     error.value = ''
     info.value = ''
 
@@ -26,8 +50,15 @@ const verifyOtp = async () => {
     loading.value = true
     try {
         await auth.verifyRecoverOtp(email, otp.value)
-        sessionStorage.setItem('recover_otp' , otp.value)
-        console.log(otp.value)
+        sessionStorage.setItem('recover_otp', otp.value)
+
+        loading.value = false
+        verified.value = true
+        await wait(SUCCESS_PAUSE)
+
+        opening.value = true
+        await wait(DOOR_DURATION)
+
         router.push('/changepassword')
     } catch (err) {
         error.value = auth.error || 'Invalid OTP'
@@ -35,7 +66,10 @@ const verifyOtp = async () => {
         loading.value = false
     }
 }
+
 const resendOtp = async () => {
+    if (verified.value) return
+
     error.value = ''
     info.value = ''
     resending.value = true
@@ -51,7 +85,18 @@ const resendOtp = async () => {
 </script>
 
 <template>
-    <div class="otp-page">
+    <div class="otp-page" :class="{ verified, opening, entering }">
+        <div class="door-reveal" aria-hidden="true">
+            <div class="reveal-content">
+                <div class="reveal-check">
+                    <i class="bi bi-check-lg"></i>
+                </div>
+                <h3>Code verified</h3>
+                <p>Opening password reset...</p>
+                <div class="reveal-bar"><span></span></div>
+            </div>
+        </div>
+
         <div class="otp-form">
             <div class="form-wrap">
                 <button type="button" class="back-btn" @click="goBack">
@@ -86,24 +131,28 @@ const resendOtp = async () => {
                         <div class="field">
                             <label for="otp">Verification Code</label>
                             <div class="otp-boxes">
-                                <div v-for="i in 6" :key="i" class="otp-box" :class="{
+                                <div v-for="i in 6" :key="i" class="otp-box" :style="{ '--i': i - 1 }" :class="{
                                     filled: otp[i - 1],
                                     active: otp.length === i - 1 || (otp.length === 6 && i === 6)
                                 }">
                                     {{ otp[i - 1] || '' }}
                                 </div>
 
-                                <!-- one real input, sits on top of the boxes -->
                                 <input id="otp" v-model="otp" type="text" inputmode="numeric"
                                     autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" class="otp-input"
-                                    required @input="otp = otp.replace(/\D/g, '')" />
+                                    required :disabled="verified" @input="otp = otp.replace(/\D/g, '')" />
                             </div>
                         </div>
 
-                        <button type="submit" class="submit-btn" :disabled="loading">
+                        <button type="submit" class="submit-btn" :disabled="loading || verified">
                             <span v-if="loading">
                                 <i class="bi bi-arrow-repeat spin"></i>
                                 Verifying...
+                            </span>
+
+                            <span v-else-if="verified" class="submit-label">
+                                <i class="bi bi-check-circle"></i>
+                                Verified
                             </span>
 
                             <span v-else class="submit-label">
@@ -115,7 +164,7 @@ const resendOtp = async () => {
 
                     <div class="resend">
                         <span>Didn't receive the code?</span>
-                        <button type="button" :disabled="resending" @click="resendOtp">Resend OTP</button>
+                        <button type="button" :disabled="resending || verified" @click="resendOtp">Resend OTP</button>
                     </div>
 
                     <p class="security-text">
@@ -126,7 +175,6 @@ const resendOtp = async () => {
             </div>
         </div>
 
-        <!-- RIGHT: showcase image (same as login) -->
         <div class="showcase">
             <div class="showcase-card">
                 <div class="scene">
@@ -162,15 +210,161 @@ const resendOtp = async () => {
 }
 
 .otp-page {
+    position: relative;
     min-height: 100vh;
     min-height: 100dvh;
     width: 100%;
     display: grid;
     grid-template-columns: 50% 50%;
     background: #fff;
+    overflow: hidden;
 }
 
-/* ---------- LEFT ---------- */
+.otp-form,
+.showcase {
+    position: relative;
+    z-index: 1;
+    transition:
+        transform 1s cubic-bezier(0.76, 0, 0.24, 1),
+        box-shadow 1s ease;
+    will-change: transform;
+}
+
+.opening .otp-form,
+.entering .otp-form {
+    transform: translateX(-100%);
+    box-shadow: 16px 0 50px rgba(17, 24, 39, 0.18);
+}
+
+.opening .showcase,
+.entering .showcase {
+    transform: translateX(100%);
+    box-shadow: -16px 0 50px rgba(17, 24, 39, 0.25);
+}
+
+.opening .otp-form,
+.opening .showcase {
+    pointer-events: none;
+}
+
+.door-reveal {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 50% 40%, #ffffff 0%, #eef2ff 60%, #e0e7ff 100%);
+}
+
+.reveal-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    opacity: 0;
+    transform: scale(0.9);
+}
+
+.opening .reveal-content {
+    opacity: 1;
+    transform: none;
+    transition:
+        opacity 0.6s ease 0.35s,
+        transform 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.35s;
+}
+
+.reveal-check {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    margin-bottom: 8px;
+    border-radius: 50%;
+    background: #12b76a;
+    color: #fff;
+    font-size: 34px;
+    box-shadow: 0 0 0 0 rgba(18, 183, 106, 0.45);
+}
+
+.opening .reveal-check {
+    animation: check-pulse 1.4s ease-out infinite;
+}
+
+@keyframes check-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(18, 183, 106, 0.45);
+    }
+
+    100% {
+        box-shadow: 0 0 0 28px rgba(18, 183, 106, 0);
+    }
+}
+
+.reveal-content h3 {
+    margin: 0;
+    color: #101828;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.reveal-content p {
+    margin: 0;
+    color: #667085;
+    font-size: 14px;
+}
+
+.reveal-bar {
+    width: 160px;
+    height: 4px;
+    margin-top: 14px;
+    overflow: hidden;
+    border-radius: 4px;
+    background: #d9e0f5;
+}
+
+.reveal-bar span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 4px;
+    background: #4f46e5;
+    transform: scaleX(0);
+    transform-origin: left;
+}
+
+.opening .reveal-bar span {
+    transform: scaleX(1);
+    transition: transform 1s ease 0.5s;
+}
+
+.verified .otp-box {
+    border-color: #12b76a;
+    background: #ecfdf3;
+    color: #027a48;
+    animation: box-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+@keyframes box-pop {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.12);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.verified .submit-btn {
+    background: #12b76a;
+    opacity: 1;
+}
+
 .otp-form {
     min-width: 0;
     min-height: 100vh;
@@ -303,20 +497,18 @@ const resendOtp = async () => {
     color: #111827;
     font-size: 24px;
     font-weight: 600;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s, color 0.3s;
 }
 
 .otp-box.filled {
     border-color: #6366f1;
 }
 
-/* highlight the current box only while the input is focused */
 .otp-boxes:focus-within .otp-box.active {
     border-color: #4f46e5;
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
 }
 
-/* the real input covers all boxes, invisible but still receives typing/paste/autofill */
 .otp-input {
     position: absolute;
     inset: 0;
@@ -339,7 +531,7 @@ const resendOtp = async () => {
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, background 0.3s;
 }
 
 .submit-btn:hover:not(:disabled) {
@@ -419,7 +611,6 @@ const resendOtp = async () => {
     }
 }
 
-/* ---------- RIGHT ---------- */
 .showcase {
     min-width: 0;
     min-height: 100vh;
@@ -503,7 +694,6 @@ const resendOtp = async () => {
     background: #fff;
 }
 
-/* ---------- RESPONSIVE ---------- */
 @media (min-width: 861px) and (max-width: 1250px) {
 
     .otp-form,

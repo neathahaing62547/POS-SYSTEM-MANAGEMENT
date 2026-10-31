@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -9,10 +9,27 @@ const email = ref('')
 const error = ref('')
 const errors = ref({})
 const loading = ref(false)
+const success = ref(false)
+const opening = ref(false)
+const entering = ref(true)
+
+const SUCCESS_PAUSE = 500
+const DOOR_DURATION = 1100
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+onMounted(() => {
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            entering.value = false
+        })
+    })
+})
 
 const goBack = () => {
     router.push('/login')
 }
+
 const validate = () => {
     errors.value = {}
 
@@ -23,16 +40,26 @@ const validate = () => {
     }
     return Object.keys(errors.value).length === 0
 }
+
 const recover = async () => {
+    if (success.value) return
+
     error.value = ''
     if (!validate()) {
         return
     }
     loading.value = true
     try {
-        const response = await auth.recoverEmail(email.value.trim())
-        console.log(response)
+        await auth.recoverEmail(email.value.trim())
         sessionStorage.setItem('recover_email', email.value.trim())
+
+        loading.value = false
+        success.value = true
+        await wait(SUCCESS_PAUSE)
+
+        opening.value = true
+        await wait(DOOR_DURATION)
+
         router.push('/recover-otp-verify')
     } catch (err) {
         error.value = auth.error || 'Something went wrong. Please try again.'
@@ -41,8 +68,20 @@ const recover = async () => {
     }
 }
 </script>
+
 <template>
-    <div class="recover-page">
+    <div class="recover-page" :class="{ success, opening, entering }">
+        <div class="door-reveal" aria-hidden="true">
+            <div class="reveal-content">
+                <div class="reveal-check">
+                    <i class="bi bi-check-lg"></i>
+                </div>
+                <h3>Code sent</h3>
+                <p>Opening the verification page...</p>
+                <div class="reveal-bar"><span></span></div>
+            </div>
+        </div>
+
         <div class="recover-form">
             <div class="form-wrap">
                 <button type="button" class="back-btn" @click="goBack">
@@ -71,16 +110,21 @@ const recover = async () => {
                                 <label for="email">Email Address</label>
                                 <input id="email" v-model="email" type="email" autocomplete="email"
                                     placeholder="Input your email address" :class="{ 'input-error': errors.email }"
-                                    @input="errors.email = ''">
+                                    :disabled="success" @input="errors.email = ''">
                                 <small v-if="errors.email" class="field-error">
                                     {{ errors.email }}
                                 </small>
                             </div>
 
-                            <button type="submit" class="submit-btn" :disabled="loading">
+                            <button type="submit" class="submit-btn" :disabled="loading || success">
                                 <span v-if="loading">
                                     <i class="bi bi-arrow-repeat spin"></i>
                                     Sending...
+                                </span>
+
+                                <span v-else-if="success" class="submit-label">
+                                    <i class="bi bi-check-circle"></i>
+                                    Sent
                                 </span>
 
                                 <span v-else class="submit-label">
@@ -99,7 +143,6 @@ const recover = async () => {
             </div>
         </div>
 
-        <!-- RIGHT: showcase image (same as login) -->
         <div class="showcase">
             <div class="showcase-card">
                 <div class="scene">
@@ -135,12 +178,152 @@ const recover = async () => {
 }
 
 .recover-page {
+    position: relative;
     min-height: 100vh;
     min-height: 100dvh;
     width: 100%;
     display: grid;
     grid-template-columns: 50% 50%;
     background: #fff;
+    overflow: hidden;
+}
+
+.recover-form,
+.showcase {
+    position: relative;
+    z-index: 1;
+    transition:
+        transform 1s cubic-bezier(0.76, 0, 0.24, 1),
+        box-shadow 1s ease;
+    will-change: transform;
+}
+
+.opening .recover-form,
+.entering .recover-form {
+    transform: translateX(-100%);
+    box-shadow: 16px 0 50px rgba(17, 24, 39, 0.18);
+}
+
+.opening .showcase,
+.entering .showcase {
+    transform: translateX(100%);
+    box-shadow: -16px 0 50px rgba(17, 24, 39, 0.25);
+}
+
+.opening .recover-form,
+.opening .showcase {
+    pointer-events: none;
+}
+
+.door-reveal {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 50% 40%, #ffffff 0%, #eef2ff 60%, #e0e7ff 100%);
+}
+
+.reveal-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    opacity: 0;
+    transform: scale(0.9);
+}
+
+.opening .reveal-content {
+    opacity: 1;
+    transform: none;
+    transition:
+        opacity 0.6s ease 0.35s,
+        transform 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.35s;
+}
+
+.reveal-check {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    margin-bottom: 8px;
+    border-radius: 50%;
+    background: #12b76a;
+    color: #fff;
+    font-size: 34px;
+    box-shadow: 0 0 0 0 rgba(18, 183, 106, 0.45);
+}
+
+.opening .reveal-check {
+    animation: check-pulse 1.4s ease-out infinite;
+}
+
+@keyframes check-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(18, 183, 106, 0.45);
+    }
+
+    100% {
+        box-shadow: 0 0 0 28px rgba(18, 183, 106, 0);
+    }
+}
+
+.reveal-content h3 {
+    margin: 0;
+    color: #101828;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.reveal-content p {
+    margin: 0;
+    color: #667085;
+    font-size: 14px;
+}
+
+.reveal-bar {
+    width: 160px;
+    height: 4px;
+    margin-top: 14px;
+    overflow: hidden;
+    border-radius: 4px;
+    background: #d9e0f5;
+}
+
+.reveal-bar span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 4px;
+    background: #4f46e5;
+    transform: scaleX(0);
+    transform-origin: left;
+}
+
+.opening .reveal-bar span {
+    transform: scaleX(1);
+    transition: transform 1s ease 0.5s;
+}
+
+.success .submit-btn {
+    background: #12b76a;
+    opacity: 1;
+    animation: btn-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes btn-pop {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.03);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 .recover-form {
@@ -287,7 +470,7 @@ const recover = async () => {
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, background 0.3s;
 }
 
 .submit-btn:hover:not(:disabled) {
@@ -337,7 +520,6 @@ const recover = async () => {
     }
 }
 
-/* ---------- RIGHT ---------- */
 .showcase {
     min-width: 0;
     min-height: 100vh;
@@ -421,7 +603,6 @@ const recover = async () => {
     background: #fff;
 }
 
-/* ---------- RESPONSIVE ---------- */
 @media (min-width: 861px) and (max-width: 1250px) {
 
     .recover-form,

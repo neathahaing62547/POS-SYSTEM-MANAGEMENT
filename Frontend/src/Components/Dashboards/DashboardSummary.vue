@@ -1,19 +1,58 @@
-
 <script setup>
-import { computed } from 'vue'
+
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 const props = defineProps({
+   
     summary: {
         type: Object,
         default: () => ({}),
     },
+   
     loading: {
         type: Boolean,
         default: false,
     },
 })
 
+const progress = ref(0)
+let frame = 0
+
+const play = () => {
+    cancelAnimationFrame(frame)
+    const startTime = performance.now()
+    const duration = 1300 // milliseconds
+    progress.value = 0
+
+    const tick = now => {
+        const t = Math.min((now - startTime) / duration, 1)
+        progress.value = 1 - Math.pow(1 - t, 4) // ease-out: fast start, slow end
+        if (t < 1) frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+}
+
+
+watch(
+    () => [props.loading, props.summary],
+    ([isLoading]) => {
+        if (!isLoading) play()
+    },
+    { immediate: true }
+)
+
+// Stop the animation if the component is removed
+onBeforeUnmount(() => cancelAnimationFrame(frame))
+
+// Returns the number to display right now (partial value while counting)
+const animated = (value, isCurrency = false) => {
+    const number = Number(value ?? 0)
+    if (progress.value >= 1) return number // finished: show the exact value
+    return isCurrency ? number * progress.value : Math.round(number * progress.value)
+}
+
 const cards = computed(() => {
+    // Read each section of the API response (empty object if missing)
     const products = props.summary.SummaryProducts ?? {}
     const brands = props.summary.SummaryBrand ?? {}
     const categories = props.summary.SummaryCategories ?? {}
@@ -92,7 +131,7 @@ const cards = computed(() => {
             value: expenses.TotalExpenseAmount,
             icon: 'bi-wallet2',
             color: 'amber',
-            currency: true,
+            currency: true, // show as money
         },
         {
             label: 'Stock balance',
@@ -109,7 +148,7 @@ const cards = computed(() => {
             growthPercentage: sales.sale_growth_percentage,
             icon: 'bi-currency-dollar',
             color: 'green',
-            currency: true,
+            currency: true, // show as money
         },
     ]
 })
@@ -117,11 +156,14 @@ const cards = computed(() => {
 
 <template>
     <section class="metric-grid">
+        <!-- --i = card position, used to stagger the entrance animation -->
         <article
-            v-for="card in cards"
+            v-for="(card, index) in cards"
             :key="card.label"
             class="metric-card"
+            :style="{ '--i': index }"
         >
+            <!-- Icon -->
             <div class="metric-icon" :class="card.color">
                 <i class="bi" :class="card.icon"></i>
             </div>
@@ -129,34 +171,43 @@ const cards = computed(() => {
             <div class="metric-content">
                 <span>{{ card.label }}</span>
 
+                <!-- While loading, show a dash -->
                 <strong v-if="loading">—</strong>
 
+                <!-- Money value (counts up) -->
                 <strong v-else-if="card.currency">
-                    {{ Number(card.value ?? 0).toLocaleString('en-US', {
-                        style: 'currency',
-                        currency: 'USD',
-                    }) }}
+                    {{
+                        animated(card.value, true).toLocaleString('en-US', {
+                            style: 'currency',
+                            currency: 'USD',
+                        })
+                    }}
                 </strong>
 
+                <!-- Normal number (counts up) -->
                 <strong v-else>
-                    {{ Number(card.value ?? 0).toLocaleString() }}
+                    {{ animated(card.value).toLocaleString() }}
                 </strong>
 
-                <small v-if="card.growthAmount != null ||
-                    card.growthPercentage != null"
-                    :class="Number(card.growthAmount ?? 0) >= 0
-                        ? 'growth-up'
-                        : 'growth-down'"
+                <!-- Growth line (amount + percentage vs previous period) -->
+                <small
+                    v-if="card.growthAmount != null || card.growthPercentage != null"
+                    :class="Number(card.growthAmount ?? 0) >= 0 ? 'growth-up' : 'growth-down'"
                 >
                     <b>
-                        {{ Number(card.growthAmount ?? 0) > 0 ? '+' : '' }}{{ Number(card.growthAmount ?? 0).toLocaleString() }}
+                        {{ Number(card.growthAmount ?? 0) > 0 ? '+' : ''
+                        }}{{ Number(card.growthAmount ?? 0).toLocaleString() }}
                     </b>
-                    · {{ card.growthPercentage == null
-                        ? 'N/A'
-                        : `${Number(card.growthPercentage).toFixed(1)}%` }}
+                    ·
+                    {{
+                        card.growthPercentage == null
+                            ? 'N/A'
+                            : `${Number(card.growthPercentage).toFixed(1)}%`
+                    }}
                     <span class="growth-label">vs previous period</span>
                 </small>
 
+                <!-- Otherwise show the small note -->
                 <small v-else-if="card.note">
                     {{ card.note }}
                 </small>
@@ -166,11 +217,24 @@ const cards = computed(() => {
 </template>
 
 <style scoped>
+/* ---------- Grid ---------- */
 .metric-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
     margin-bottom: 20px;
+}
+
+/* ---------- Card + entrance animation ---------- */
+@keyframes card-in {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
 }
 
 .metric-card {
@@ -182,9 +246,23 @@ const cards = computed(() => {
     border: 1px solid #e4e7ec;
     border-radius: 12px;
     background: #fff;
-    box-shadow: 0 2px 7px rgba(16, 24, 40, .035);
+    box-shadow: 0 2px 7px rgba(16, 24, 40, 0.035);
+
+    /* Each card starts 60ms after the previous one */
+    animation: card-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(0.15s + var(--i, 0) * 0.06s);
+
+    /* Hover: lift the card slightly */
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 
+.metric-card:hover {
+    transform: translateY(-3px);
+    border-color: #d0d9ee;
+    box-shadow: 0 8px 20px rgba(16, 24, 40, 0.07);
+}
+
+/* ---------- Icon ---------- */
 .metric-icon {
     width: 42px;
     height: 42px;
@@ -193,33 +271,21 @@ const cards = computed(() => {
     place-items: center;
     border-radius: 10px;
     font-size: 18px;
+    transition: transform 0.25s;
 }
 
-.metric-icon.blue {
-    color: #1f5eff;
-    background: #edf3ff;
+/* Icon wiggles up when the card is hovered */
+.metric-card:hover .metric-icon {
+    transform: scale(1.1) rotate(-4deg);
 }
 
-.metric-icon.green {
-    color: #039855;
-    background: #ecfdf3;
-}
+.metric-icon.blue { color: #1f5eff; background: #edf3ff; }
+.metric-icon.green { color: #039855; background: #ecfdf3; }
+.metric-icon.amber { color: #dc6803; background: #fffaeb; }
+.metric-icon.violet { color: #6941c6; background: #f4f3ff; }
+.metric-icon.red { color: #d92d20; background: #fef3f2; }
 
-.metric-icon.amber {
-    color: #dc6803;
-    background: #fffaeb;
-}
-
-.metric-icon.violet {
-    color: #6941c6;
-    background: #f4f3ff;
-}
-
-.metric-icon.red {
-    color: #d92d20;
-    background: #fef3f2;
-}
-
+/* ---------- Text ---------- */
 .metric-content {
     min-width: 0;
 }
@@ -236,17 +302,14 @@ const cards = computed(() => {
     margin: 5px 0 3px;
     color: #101828;
     font-size: 23px;
-    letter-spacing: -.03em;
+    letter-spacing: -0.03em;
     overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums; /* digits keep the same width while counting */
 }
 
-.growth-up {
-    color: #039855 !important;
-}
-
-.growth-down {
-    color: #d92d20 !important;
-}
+/* Growth colours */
+.growth-up { color: #039855 !important; }
+.growth-down { color: #d92d20 !important; }
 
 .growth-label {
     display: inline;
@@ -254,6 +317,7 @@ const cards = computed(() => {
     font-size: 10px;
 }
 
+/* ---------- Responsive ---------- */
 @media (max-width: 1000px) {
     .metric-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));

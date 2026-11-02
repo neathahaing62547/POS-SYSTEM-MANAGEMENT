@@ -33,14 +33,16 @@ Route::post('/recoveremail', [AuthController::class, 'recoveremail']);
 Route::post('/recoveremail/otpverify', [AuthController::class, 'verifyRecoverOtp']);
 Route::post('/changepassword', [AuthController::class, 'ChangePassword']);
 Route::get('/cors-debug', function (Request $request) {
+    $headersSent = headers_sent($sentFile, $sentLine);
+
     return response()->json([
         'environment' => app()->environment(),
         'request_origin' => $request->headers->get('Origin'),
         'request_path' => $request->path(),
+        'headers_sent' => $headersSent,
+        'headers_sent_file' => $sentFile ?: null,
+        'headers_sent_line' => $sentLine ?: null,
         'cors_config' => config('cors'),
-        'handle_cors_exists' => class_exists(
-            \Illuminate\Http\Middleware\HandleCors::class
-        ),
     ]);
 });
 Route::get('/header-debug', function () {

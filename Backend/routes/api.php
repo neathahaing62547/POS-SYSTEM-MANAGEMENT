@@ -25,15 +25,18 @@ use App\Http\Controllers\Api\CashTransactionController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\DashboardController;
+use Illuminate\Http\Request;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/login/verify-otp', [AuthController::class, 'verifyLoginOtp']);
 Route::post('/recoveremail', [AuthController::class, 'recoveremail']);
 Route::post('/recoveremail/otpverify', [AuthController::class, 'verifyRecoverOtp']);
 Route::post('/changepassword', [AuthController::class, 'ChangePassword']);
-Route::get('/cors-debug', function () {
+Route::get('/cors-debug', function (Request $request) {
     return response()->json([
         'environment' => app()->environment(),
+        'request_origin' => $request->headers->get('Origin'),
+        'request_path' => $request->path(),
         'cors_config' => config('cors'),
         'handle_cors_exists' => class_exists(
             \Illuminate\Http\Middleware\HandleCors::class

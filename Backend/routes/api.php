@@ -43,6 +43,11 @@ Route::get('/cors-debug', function (Request $request) {
         ),
     ]);
 });
+Route::get('/header-debug', function () {
+    return response()->json([
+        'message' => 'Header test',
+    ])->header('X-Debug-Test', 'Laravel-Header-Reached');
+});
 
 Route::middleware('auth:sanctum')->group(function () {
 

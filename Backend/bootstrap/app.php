@@ -1,11 +1,9 @@
-
 <?php
 
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
-use Illuminate\Http\Middleware\HandleCors;
 use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\CheckRole;
 
@@ -17,7 +15,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->prepend(HandleCors::class);
 
         $middleware->alias([
             'role' => CheckRole::class,

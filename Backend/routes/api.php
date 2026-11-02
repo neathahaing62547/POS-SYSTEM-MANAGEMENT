@@ -31,6 +31,15 @@ Route::post('/login/verify-otp', [AuthController::class, 'verifyLoginOtp']);
 Route::post('/recoveremail', [AuthController::class, 'recoveremail']);
 Route::post('/recoveremail/otpverify', [AuthController::class, 'verifyRecoverOtp']);
 Route::post('/changepassword', [AuthController::class, 'ChangePassword']);
+Route::get('/cors-debug', function () {
+    return response()->json([
+        'environment' => app()->environment(),
+        'cors_config' => config('cors'),
+        'handle_cors_exists' => class_exists(
+            \Illuminate\Http\Middleware\HandleCors::class
+        ),
+    ]);
+});
 
 Route::middleware('auth:sanctum')->group(function () {
 

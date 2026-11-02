@@ -17,11 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-
-        // Enable CORS globally
         $middleware->prepend(HandleCors::class);
 
-        // Custom middleware aliases
         $middleware->alias([
             'role' => CheckRole::class,
             'permission' => CheckPermission::class,

@@ -10,6 +10,7 @@ class PermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
+             'maindashboard.view',
             'brands.view',
             'brands.create',
             'brands.update',

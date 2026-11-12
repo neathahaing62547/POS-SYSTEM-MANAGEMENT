@@ -132,23 +132,29 @@ function pingClass() {
     if (pingMs.value <= 150) return 'ping-good'
     return 'ping-slow'
 }
+
 async function checkPing() {
     if (checking.value) return
+
     checking.value = true
     const start = performance.now()
+
     try {
-        await fetch('https://www.google.com/generate_204', {
+        await fetch('https://www.google.com/', {
             mode: 'no-cors',
             cache: 'no-store',
-            signal: AbortSignal.timeout(5000)
+            signal: AbortSignal.timeout(10000)
         })
+
         pingMs.value = Math.round(performance.now() - start)
-    } catch {
+    } catch (error) {
+        console.error('Google connection test failed:', error)
         pingMs.value = null
     } finally {
         checking.value = false
     }
 }
+
 onMounted(() => {
     checkPing()
     timer = setInterval(checkPing, 10000)

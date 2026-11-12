@@ -163,25 +163,25 @@ export const useCategoryStore = defineStore('category', {
             }
         },
 
-       async deleteCategory(id) {
-    this.loading = true
-    this.error = null
+        async deleteCategory(id) {
+            this.loading = true
+            this.error = null
 
-    try {
-        const response = await api.delete(
-            `/categories/${id}`
-        )
+            try {
+                const response = await api.delete(
+                    `/categories/${id}`
+                )
 
-        return response.data
-    } catch (error) {
-        this.error =
-            error?.response?.data?.message ||
-            'Failed to delete category'
+                return response.data
+            } catch (error) {
+                this.error =
+                    error?.response?.data?.message ||
+                    'Failed to delete category'
 
-        throw error
-    } finally {
-        this.loading = false
-    }
-}
+                throw error
+            } finally {
+                this.loading = false
+            }
+        }
     }
 })

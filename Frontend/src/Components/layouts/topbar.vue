@@ -137,7 +137,7 @@ async function checkPing() {
     checking.value = true
     const start = performance.now()
     try {
-        await fetch('http://localhost:5173/', {
+        await fetch('https://www.google.com/generate_204', {
             mode: 'no-cors',
             cache: 'no-store',
             signal: AbortSignal.timeout(5000)
@@ -306,7 +306,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-
 .topbar {
     position: sticky;
     top: 0;
@@ -824,10 +823,12 @@ onUnmounted(() => {
     color: #dc2626;
     font-size: .8rem;
 }
+
 :global(.dark-theme) .photo-card {
     border-color: #334155;
     background: #334155;
 }
+
 :global(.dark-theme) .btn-choose {
     border-color: #475569;
     background: #1e293b;
@@ -866,18 +867,22 @@ onUnmounted(() => {
     font-size: .95rem;
     font-weight: 600;
 }
+
 :global(.dark-theme) .profile-modal {
     border-color: #334155;
     background: #1e293b;
     color: #f1f5f9;
 }
+
 :global(.dark-theme) .profile-modal-header {
     border-color: #334155;
     background: #334155;
 }
+
 :global(.dark-theme) .profile-details>div {
     border-color: #334155;
 }
+
 :global(.dark-theme) .profile-close {
     border-color: #475569;
     background: #1e293b;
@@ -890,6 +895,7 @@ onUnmounted(() => {
         transform:
             translateY(-4px);
     }
+
     to {
         opacity: 1;
         transform:
@@ -903,30 +909,35 @@ onUnmounted(() => {
     border-color:
         var(--border-color);
 }
+
 :global(.dark-theme) .search-box {
     background:
         #1e293b;
     border-color:
         #334155;
 }
+
 :global(.dark-theme) .icon-btn {
     background:
         #1e293b;
     border-color:
         #334155;
 }
+
 :global(.dark-theme) .menu-btn {
     background:
         #1e293b;
     color:
         #f1f5f9;
 }
+
 :global(.dark-theme) .menu-btn:hover,
 :global(.dark-theme) .icon-btn:hover,
 :global(.dark-theme) .user-info:hover {
     background:
         #334155;
 }
+
 :global(.dark-theme) .user-dropdown {
     background:
         #1e293b;
@@ -935,20 +946,24 @@ onUnmounted(() => {
     box-shadow:
         0 12px 30px rgba(0, 0, 0, .35);
 }
+
 :global(.dark-theme) .user-dropdown button {
     color:
         #f1f5f9;
 }
+
 :global(.dark-theme) .user-dropdown button:hover {
     background:
         #334155;
     color:
         #f87171;
 }
+
 :global(.dark-theme) .user-dropdown button i {
     color:
         #94a3b8;
 }
+
 :global(.dark-theme) .user-dropdown button:hover i {
     color:
         #f87171;
@@ -959,30 +974,37 @@ onUnmounted(() => {
         width: 180px;
     }
 }
+
 @media (max-width: 700px) {
     .topbar {
         padding: 0 15px;
     }
+
     .search-box {
         display: none;
     }
+
     .user-text,
     .user-info>i {
         display: none;
     }
 }
+
 @media (max-width: 450px) {
     .topbar-right {
         gap: 6px;
     }
+
     .icon-btn,
     .menu-btn {
         width: 36px;
         height: 36px;
     }
+
     .topbar-left {
         gap: 8px;
     }
+
     .topbar-left h5 {
         font-size: 16px;
     }

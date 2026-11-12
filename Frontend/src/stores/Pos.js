@@ -107,39 +107,38 @@ export const usePosStore = defineStore('pos', {
                 throw error
             }
         },
-      
-async confirmCheckout(paymentMethodId) {
-    try {
-        const response = await api.post('/pos/checkout/confirm', {
-            payment_method: paymentMethodId
-        })
-        try {
-            await this.getCart()
-        } catch (cartError) {
-            this.cart = {
-                items: [],
-                total: 0
+        async confirmCheckout(paymentMethodId) {
+            try {
+                const response = await api.post('/pos/checkout/confirm', {
+                    payment_method: paymentMethodId
+                })
+                try {
+                    await this.getCart()
+                } catch (cartError) {
+                    this.cart = {
+                        items: [],
+                        total: 0
+                    }
+                }
+                return response.data
+            } catch (error) {
+                this.error =
+                    error.response?.data?.message ||
+                    'Checkout failed.'
+                throw error
+            }
+        },
+        async createAbaPayWayPayment(payload) {
+            try {
+                return (
+                    await api.post('/pos/aba-payway', payload)
+                ).data
+            } catch (error) {
+                this.error =
+                    error.response?.data?.message ||
+                    'Failed to generate ABA PayWay QR.'
+                throw error
             }
         }
-        return response.data
-    } catch (error) {
-        this.error =
-            error.response?.data?.message ||
-            'Checkout failed.'
-        throw error
-    }
-},
-     async createAbaPayWayPayment(payload) {
-    try {
-        return (
-            await api.post('/pos/aba-payway', payload)
-        ).data
-    } catch (error) {
-        this.error =
-            error.response?.data?.message ||
-            'Failed to generate ABA PayWay QR.'
-        throw error
-    }
-}
     }
 })

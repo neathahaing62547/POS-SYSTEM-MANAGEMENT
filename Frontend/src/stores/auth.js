@@ -142,14 +142,14 @@ export const useAuthStore = defineStore('auth', () => {
             throw err
         }
     }
-    const resetPassword = async (email, otp, password) =>  {
+    const resetPassword = async (email, otp, password) => {
         error.value = ''
         try {
             const res = await api.post('/changepassword', { email, otp, password })
             return res.data
         } catch (err) {
             error.value = err.response?.data?.message || 'Could not change password'
-            throw err 
+            throw err
         }
     }
     const logout = () => {
